@@ -36,15 +36,15 @@ class GGDealsMonitor:
             bundles = self._get_active_bundles()
 
             if not bundles:
-                logger.warning("No se pudieron obtener bundles de GG.deals, usando fallback")
-                return self._get_example_deals()[:max_games]
+                logger.warning("No se pudieron obtener bundles de GG.deals")
+                return []
 
             # Filtrar y evaluar juegos con alto descuento
             high_discount_games = self._filter_high_discount_games(bundles, min_discount_percent)
 
             if not high_discount_games:
-                logger.info("No se encontraron juegos con descuentos altos, usando ejemplos")
-                return self._get_example_deals()[:max_games]
+                logger.info("No se encontraron juegos con descuentos altos en GG.deals")
+                return []
 
             # Ordenar por calidad/relevancia y limitar cantidad
             sorted_games = self._sort_games_by_quality(high_discount_games)
@@ -56,59 +56,11 @@ class GGDealsMonitor:
 
         except Exception as e:
             logger.error(f"Error obteniendo juegos de GG.deals: {e}")
-            logger.warning("Usando ofertas de ejemplo como fallback...")
-            return self._get_example_deals()[:max_games]
+            return []
 
 
 
-    def _get_example_deals(self) -> List[Dict]:
-        """Genera ofertas de ejemplo para testing cuando la API falla"""
-        from datetime import datetime, timedelta
 
-        example_deals = [
-            {
-                'title': 'Cyberpunk 2077',
-                'url': 'https://gg.deals/game/cyberpunk-2077/',
-                'bundle_title': 'Fanatical - Build Your Own Sci-Fi Bundle',
-                'bundle_url': 'https://gg.deals/bundle/fanatical-build-your-own-sci-fi-bundle/',
-                'price': 15.99,
-                'currency': 'USD',
-                'price_per_game': 3.20,
-                'estimated_discount': 85.0,
-                'games_in_tier': 5,
-                'end_date': (datetime.now() + timedelta(days=10)).strftime('%Y-%m-%d %H:%M:%S'),
-                'extracted_at': datetime.now(timezone.utc).isoformat()
-            },
-            {
-                'title': 'The Witcher 3: Wild Hunt GOTY',
-                'url': 'https://gg.deals/game/the-witcher-3-wild-hunt-game-of-the-year-edition/',
-                'bundle_title': 'Humble Choice Bundle',
-                'bundle_url': 'https://gg.deals/bundle/humble-choice-bundle/',
-                'price': 12.00,
-                'currency': 'USD',
-                'price_per_game': 2.40,
-                'estimated_discount': 88.0,
-                'games_in_tier': 5,
-                'end_date': (datetime.now() + timedelta(days=8)).strftime('%Y-%m-%d %H:%M:%S'),
-                'extracted_at': datetime.now(timezone.utc).isoformat()
-            },
-            {
-                'title': 'Red Dead Redemption 2',
-                'url': 'https://gg.deals/game/red-dead-redemption-2/',
-                'bundle_title': 'Epic Deals Collection',
-                'bundle_url': 'https://gg.deals/bundle/epic-deals-collection/',
-                'price': 20.00,
-                'currency': 'USD',
-                'price_per_game': 4.00,
-                'estimated_discount': 80.0,
-                'games_in_tier': 5,
-                'end_date': (datetime.now() + timedelta(days=5)).strftime('%Y-%m-%d %H:%M:%S'),
-                'extracted_at': datetime.now(timezone.utc).isoformat()
-            }
-        ]
-
-        logger.info(f"Generadas {len(example_deals)} ofertas de ejemplo")
-        return example_deals
 
     def _get_active_bundles(self) -> List[Dict]:
         """Obtiene bundles activos de GG.deals usando la API oficial"""
