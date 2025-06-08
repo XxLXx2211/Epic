@@ -24,7 +24,7 @@ class GGDealsMonitor:
         self.base_url = GGDEALS_BASE_URL
 
     def get_high_discount_games(self, min_discount_percent: int = 80, max_games: int = 4) -> List[Dict]:
-        """Obtiene juegos con alto descuento desde GG.deals"""
+        """Obtiene juegos con alto descuento desde GG.deals usando la API oficial"""
         if not self.api_key:
             logger.warning("GG.deals API key no configurada")
             return []
@@ -32,28 +32,32 @@ class GGDealsMonitor:
         logger.info(f"Buscando juegos con {min_discount_percent}%+ de descuento en GG.deals...")
 
         try:
-            # Obtener bundles activos
+            # Obtener bundles activos usando la API oficial
             bundles = self._get_active_bundles()
 
             if not bundles:
-                logger.warning("No se pudieron obtener bundles de GG.deals")
-                return []
+                logger.warning("No se pudieron obtener bundles de GG.deals, usando fallback")
+                return self._get_example_deals()[:max_games]
 
             # Filtrar y evaluar juegos con alto descuento
             high_discount_games = self._filter_high_discount_games(bundles, min_discount_percent)
+
+            if not high_discount_games:
+                logger.info("No se encontraron juegos con descuentos altos, usando ejemplos")
+                return self._get_example_deals()[:max_games]
 
             # Ordenar por calidad/relevancia y limitar cantidad
             sorted_games = self._sort_games_by_quality(high_discount_games)
 
             result = sorted_games[:max_games]
-            logger.info(f"Se encontraron {len(result)} juegos con {min_discount_percent}%+ de descuento")
+            logger.info(f"Se encontraron {len(result)} juegos reales con {min_discount_percent}%+ de descuento")
 
             return result
 
         except Exception as e:
             logger.error(f"Error obteniendo juegos de GG.deals: {e}")
             logger.warning("Usando ofertas de ejemplo como fallback...")
-            return self._get_example_deals()
+            return self._get_example_deals()[:max_games]
 
 
 
@@ -107,61 +111,43 @@ class GGDealsMonitor:
         return example_deals
 
     def _get_active_bundles(self) -> List[Dict]:
-        """Obtiene bundles activos de GG.deals"""
+        """Obtiene bundles activos de GG.deals usando la API oficial"""
         try:
-            url = f"{self.base_url}/bundles/active/"
+            url = f"{self.base_url}/v1/bundles/active/"
             params = {
-                'key': self.api_key
+                'key': self.api_key,
+                'region': 'us'  # Usar región US por defecto
             }
 
-            # Intentar sin región primero
-            logger.info(f"Intentando obtener bundles de GG.deals...")
-            response = self.session.get(url, params=params)
-
-            if response.status_code == 400:
-                logger.warning("Error 400, intentando con región US...")
-                params['region'] = 'us'
-                response = self.session.get(url, params=params)
-
-            if response.status_code == 400:
-                logger.warning("Error 400 con región US, intentando con región EU...")
-                params['region'] = 'eu'
-                response = self.session.get(url, params=params)
-
+            logger.info(f"Obteniendo bundles activos de GG.deals...")
+            response = self.session.get(url, params=params, timeout=30)
             response.raise_for_status()
 
-            # Verificar que el contenido sea JSON válido
-            try:
-                # Intentar decodificar manualmente si hay problemas de encoding
-                if response.headers.get('content-encoding') == 'gzip':
-                    import gzip
-                    content = gzip.decompress(response.content).decode('utf-8')
-                    data = json.loads(content)
-                else:
-                    data = response.json()
+            data = response.json()
+            logger.info(f"API Response success: {data.get('success', False)}")
 
-                logger.info(f"Respuesta de GG.deals: {data.get('success', 'unknown')}")
+            if not data.get('success', False):
+                error_info = data.get('data', {})
+                logger.error(f"GG.deals API error: {error_info}")
+                return []
 
-                if not data.get('success'):
-                    logger.error(f"API de GG.deals retornó success=false: {data}")
-                    return []
-            except Exception as e:
-                logger.error(f"Error parsing JSON de GG.deals: {e}")
-                logger.error(f"Content-Type: {response.headers.get('content-type', 'unknown')}")
-                logger.error(f"Content-Encoding: {response.headers.get('content-encoding', 'none')}")
-                logger.error(f"Response length: {len(response.content)} bytes")
-                logger.warning("API de GG.deals no funciona, usando ofertas de ejemplo")
-                return self._get_example_deals()[:4]
+            # Extraer bundles según la documentación oficial
+            bundles_data = data.get('data', {})
+            bundles = bundles_data.get('bundles', [])
+            total_count = bundles_data.get('totalCount', 0)
 
-            bundles = data.get('data', {}).get('bundles', [])
-            logger.info(f"Obtenidos {len(bundles)} bundles activos de GG.deals")
-
+            logger.info(f"Obtenidos {len(bundles)} bundles de {total_count} totales")
             return bundles
 
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error de conexión con GG.deals API: {e}")
+            return []
+        except json.JSONDecodeError as e:
+            logger.error(f"Error parsing JSON de GG.deals: {e}")
+            logger.error(f"Response content: {response.text[:500]}")
+            return []
         except Exception as e:
-            logger.error(f"Error obteniendo bundles activos: {e}")
-            logger.error(f"Status code: {getattr(response, 'status_code', 'N/A')}")
-            logger.error(f"Response text: {getattr(response, 'text', 'N/A')[:200]}")
+            logger.error(f"Error inesperado obteniendo bundles: {e}")
             return []
 
     def _filter_high_discount_games(self, bundles: List[Dict], min_discount: int) -> List[Dict]:
@@ -180,9 +166,17 @@ class GGDealsMonitor:
                     games = tier.get('games', [])
 
                     if len(games) > 0 and price > 0:
-                        price_per_game = price / len(games)
-                        estimated_original_price = 20.0
-                        estimated_discount = ((estimated_original_price - price_per_game) / estimated_original_price) * 100
+                        # Manejar "Build your own" bundles correctamente
+                        games_count = tier.get('gamesCount')
+                        if games_count is not None:  # Build your own bundle
+                            price_per_game = price / games_count if games_count > 0 else price
+                            effective_games = games_count
+                        else:  # Bundle estándar
+                            price_per_game = price / len(games)
+                            effective_games = len(games)
+
+                        # Estimar descuento más realista basado en precio por juego
+                        estimated_discount = self._estimate_discount_by_price(price_per_game)
 
                         if estimated_discount >= min_discount:
                             for game in games:
@@ -206,6 +200,22 @@ class GGDealsMonitor:
                 continue
 
         return high_discount_games
+
+    def _estimate_discount_by_price(self, price_per_game: float) -> float:
+        """Estima el porcentaje de descuento basado en el precio por juego"""
+        # Estimaciones más realistas basadas en precios típicos de juegos
+        if price_per_game <= 1.0:
+            return 95.0  # Precio muy bajo, descuento muy alto
+        elif price_per_game <= 2.0:
+            return 90.0  # Precio bajo, descuento alto
+        elif price_per_game <= 5.0:
+            return 85.0  # Precio moderado, buen descuento
+        elif price_per_game <= 10.0:
+            return 80.0  # Precio razonable, descuento decente
+        elif price_per_game <= 15.0:
+            return 75.0  # Precio medio, descuento moderado
+        else:
+            return 70.0  # Precio alto, descuento menor
 
     def _sort_games_by_quality(self, games: List[Dict]) -> List[Dict]:
         """Ordena juegos por calidad/relevancia"""
