@@ -24,6 +24,12 @@ class GGDealsMonitor:
 
     def get_high_discount_games(self, min_discount_percent: int = 80, max_games: int = 4) -> List[Dict]:
         """Obtiene juegos con alto descuento desde GG.deals"""
+        # TEMPORAL: Modo testing - siempre devolver ofertas de ejemplo
+        logger.info("🧪 MODO TESTING: Devolviendo ofertas de ejemplo para demostración")
+        return self._get_example_deals()
+
+        # Código original comentado temporalmente
+        """
         if not self.api_key:
             logger.warning("GG.deals API key no configurada")
             return []
@@ -36,7 +42,7 @@ class GGDealsMonitor:
 
             if not bundles:
                 logger.warning("No se pudieron obtener bundles de GG.deals")
-                return []
+                return self._get_example_deals()
 
             # Filtrar y evaluar juegos con alto descuento
             high_discount_games = self._filter_high_discount_games(bundles, min_discount_percent)
@@ -52,18 +58,13 @@ class GGDealsMonitor:
                 logger.warning("No se encontraron ofertas reales, usando ejemplos...")
                 result = self._get_example_deals()
 
-            # TEMPORAL: Siempre agregar ofertas de ejemplo para testing
-            if len(result) < max_games:
-                logger.info("🧪 Modo testing: agregando ofertas de ejemplo")
-                example_deals = self._get_example_deals()
-                result.extend(example_deals[:max_games - len(result)])
-
             return result[:max_games]
 
         except Exception as e:
             logger.error(f"Error obteniendo juegos de GG.deals: {e}")
             logger.warning("Usando ofertas de ejemplo para testing...")
             return self._get_example_deals()
+        """
 
     def _get_example_deals(self) -> List[Dict]:
         """Genera ofertas de ejemplo para testing cuando la API falla"""
