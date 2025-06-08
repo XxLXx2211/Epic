@@ -65,7 +65,7 @@ class GGDealsMonitor:
     def _get_active_bundles(self) -> List[Dict]:
         """Obtiene bundles activos de GG.deals usando la API oficial"""
         try:
-            url = f"{self.base_url}/v1/bundles/active/"
+            url = f"{self.base_url}/bundles/active/"
             params = {
                 'key': self.api_key,
                 'region': 'us'  # Usar región US por defecto
