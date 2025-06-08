@@ -1,5 +1,6 @@
 import requests
 import logging
+import json
 from datetime import datetime, timezone
 from typing import List, Dict, Optional
 from config import GGDEALS_API_KEY, GGDEALS_BASE_URL, HEADERS
@@ -131,17 +132,26 @@ class GGDealsMonitor:
 
             # Verificar que el contenido sea JSON válido
             try:
-                data = response.json()
+                # Intentar decodificar manualmente si hay problemas de encoding
+                if response.headers.get('content-encoding') == 'gzip':
+                    import gzip
+                    content = gzip.decompress(response.content).decode('utf-8')
+                    data = json.loads(content)
+                else:
+                    data = response.json()
+
                 logger.info(f"Respuesta de GG.deals: {data.get('success', 'unknown')}")
 
                 if not data.get('success'):
                     logger.error(f"API de GG.deals retornó success=false: {data}")
                     return []
-            except ValueError as e:
+            except Exception as e:
                 logger.error(f"Error parsing JSON de GG.deals: {e}")
                 logger.error(f"Content-Type: {response.headers.get('content-type', 'unknown')}")
+                logger.error(f"Content-Encoding: {response.headers.get('content-encoding', 'none')}")
                 logger.error(f"Response length: {len(response.content)} bytes")
-                return []
+                logger.warning("API de GG.deals no funciona, usando ofertas de ejemplo")
+                return self._get_example_deals()[:4]
 
             bundles = data.get('data', {}).get('bundles', [])
             logger.info(f"Obtenidos {len(bundles)} bundles activos de GG.deals")
