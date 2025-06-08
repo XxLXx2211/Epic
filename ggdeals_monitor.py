@@ -29,6 +29,8 @@ class GGDealsMonitor:
             logger.warning("GG.deals API key no configurada")
             return []
 
+        logger.info(f"Usando API key: {self.api_key[:10]}..." if len(self.api_key) > 10 else "API key muy corta")
+
         logger.info(f"Buscando juegos con {min_discount_percent}%+ de descuento en GG.deals...")
 
         try:
@@ -96,7 +98,10 @@ class GGDealsMonitor:
             return []
         except json.JSONDecodeError as e:
             logger.error(f"Error parsing JSON de GG.deals: {e}")
-            logger.error(f"Response content: {response.text[:500]}")
+            logger.error(f"Status code: {response.status_code}")
+            logger.error(f"Response headers: {dict(response.headers)}")
+            logger.error(f"Response content: {response.text[:1000]}")
+            logger.error(f"Response length: {len(response.content)} bytes")
             return []
         except Exception as e:
             logger.error(f"Error inesperado obteniendo bundles: {e}")
