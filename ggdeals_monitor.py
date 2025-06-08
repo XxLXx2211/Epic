@@ -93,9 +93,6 @@ class GGDealsMonitor:
             logger.info(f"Obtenidos {len(bundles)} bundles de {total_count} totales")
             return bundles
 
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Error de conexión con GG.deals API: {e}")
-            return []
         except json.JSONDecodeError as e:
             logger.error(f"Error parsing JSON de GG.deals: {e}")
             logger.error(f"Status code: {response.status_code}")
@@ -103,8 +100,14 @@ class GGDealsMonitor:
             logger.error(f"Response content: {response.text[:1000]}")
             logger.error(f"Response length: {len(response.content)} bytes")
             return []
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error de conexión con GG.deals API: {e}")
+            return []
         except Exception as e:
             logger.error(f"Error inesperado obteniendo bundles: {e}")
+            if 'response' in locals():
+                logger.error(f"Status code: {getattr(response, 'status_code', 'N/A')}")
+                logger.error(f"Response content: {getattr(response, 'text', 'N/A')[:1000]}")
             return []
 
     def _filter_high_discount_games(self, bundles: List[Dict], min_discount: int) -> List[Dict]:
