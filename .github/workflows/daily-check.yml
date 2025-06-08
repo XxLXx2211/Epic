@@ -1,4 +1,5 @@
 name: Epic Games Free Games Monitor
+# Automated monitoring of Epic Games free games with email notifications
 
 on:
   schedule:
