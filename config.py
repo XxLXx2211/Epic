@@ -19,6 +19,10 @@ EMAIL_TO = os.getenv("EMAIL_TO")
 RAWG_API_KEY = os.getenv("RAWG_API_KEY", "")
 STEAM_API_KEY = os.getenv("STEAM_API_KEY", "")
 
+# Configuración de GG.deals API
+GGDEALS_API_KEY = os.getenv("GGDEALS_API_KEY", "")
+GGDEALS_BASE_URL = "https://api.gg.deals/v1"
+
 # Configuración general
 MAX_GAMES_TO_PROCESS = 4
 DATABASE_FILE = "last_games.json"

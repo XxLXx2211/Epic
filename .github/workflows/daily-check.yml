@@ -39,6 +39,7 @@ jobs:
         EMAIL_TO: ${{ secrets.EMAIL_TO }}
         RAWG_API_KEY: ${{ secrets.RAWG_API_KEY }}
         STEAM_API_KEY: ${{ secrets.STEAM_API_KEY }}
+        GGDEALS_API_KEY: ${{ secrets.GGDEALS_API_KEY }}
       run: |
         python main.py
     

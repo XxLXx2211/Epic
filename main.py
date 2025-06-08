@@ -15,6 +15,7 @@ from typing import List, Dict, Optional
 from epic_games_monitor import EpicGamesMonitor
 from email_sender import EmailSender
 from game_relevance import GameRelevanceEvaluator
+from ggdeals_monitor import GGDealsMonitor
 from config import DATABASE_FILE, MAX_GAMES_TO_PROCESS
 
 # Configurar logging
@@ -33,6 +34,7 @@ class EpicGamesNotifier:
         self.monitor = EpicGamesMonitor()
         self.email_sender = EmailSender()
         self.relevance_evaluator = GameRelevanceEvaluator()
+        self.ggdeals_monitor = GGDealsMonitor()
         self.database_file = DATABASE_FILE
     
     def run(self):
@@ -54,24 +56,35 @@ class EpicGamesNotifier:
             # Cargar juegos anteriores
             previous_games = self.load_previous_games()
             
-            # Verificar si hay cambios
-            if self.games_have_changed(current_games, previous_games):
-                logger.info("🆕 Se detectaron cambios en los juegos gratuitos")
-                
-                # Evaluar relevancia de los juegos
-                relevance_data = self.evaluate_games_relevance(current_games)
-                
-                # Enviar notificación
-                if self.send_notification(current_games, relevance_data):
+            # Obtener ofertas de GG.deals
+            ggdeals_games = self.ggdeals_monitor.get_high_discount_games()
+            logger.info(f"🔥 Se encontraron {len(ggdeals_games)} ofertas en GG.deals")
+
+            # Verificar si hay cambios en Epic Games o nuevas ofertas en GG.deals
+            epic_games_changed = self.games_have_changed(current_games, previous_games)
+            has_ggdeals_offers = len(ggdeals_games) > 0
+
+            if epic_games_changed or has_ggdeals_offers:
+                if epic_games_changed:
+                    logger.info("🆕 Se detectaron cambios en los juegos gratuitos de Epic Games")
+                if has_ggdeals_offers:
+                    logger.info("🔥 Se encontraron ofertas con descuentos altos en GG.deals")
+
+                # Evaluar relevancia de los juegos de Epic Games
+                relevance_data = self.evaluate_games_relevance(current_games) if current_games else []
+
+                # Enviar notificación combinada
+                if self.send_combined_notification(current_games, relevance_data, ggdeals_games):
                     logger.info("📧 Notificación enviada exitosamente")
-                    
-                    # Guardar juegos actuales
-                    self.save_current_games(current_games)
-                    logger.info("💾 Base de datos actualizada")
+
+                    # Guardar juegos actuales solo si Epic Games cambió
+                    if epic_games_changed:
+                        self.save_current_games(current_games)
+                        logger.info("💾 Base de datos actualizada")
                 else:
                     logger.error("❌ Error enviando notificación")
             else:
-                logger.info("✅ No hay cambios en los juegos gratuitos")
+                logger.info("✅ No hay cambios en Epic Games ni ofertas nuevas en GG.deals")
             
             logger.info("🏁 Proceso completado exitosamente")
             
@@ -166,11 +179,21 @@ class EpicGamesNotifier:
     def send_notification(self, games: List[Dict], relevance_data: List[Dict]) -> bool:
         """Envía la notificación por correo electrónico"""
         logger.info("📧 Enviando notificación por correo...")
-        
+
         try:
             return self.email_sender.send_games_notification(games, relevance_data)
         except Exception as e:
             logger.error(f"Error enviando notificación: {e}")
+            return False
+
+    def send_combined_notification(self, epic_games: List[Dict], relevance_data: List[Dict], ggdeals_games: List[Dict]) -> bool:
+        """Envía notificación combinada con Epic Games y GG.deals"""
+        logger.info("📧 Enviando notificación combinada por correo...")
+
+        try:
+            return self.email_sender.send_combined_notification(epic_games, relevance_data, ggdeals_games)
+        except Exception as e:
+            logger.error(f"Error enviando notificación combinada: {e}")
             return False
     
     def print_games_summary(self, games: List[Dict], relevance_data: List[Dict]):
