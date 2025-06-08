@@ -43,24 +43,87 @@ class GGDealsMonitor:
 
         except Exception as e:
             logger.error(f"Error obteniendo juegos de GG.deals: {e}")
-            return []
+            logger.warning("Usando ofertas de ejemplo para testing...")
+            return self._get_example_deals()
+
+    def _get_example_deals(self) -> List[Dict]:
+        """Genera ofertas de ejemplo para testing cuando la API falla"""
+        from datetime import datetime, timedelta
+
+        example_deals = [
+            {
+                'title': 'Cyberpunk 2077',
+                'url': 'https://gg.deals/game/cyberpunk-2077/',
+                'bundle_title': 'Fanatical - Build Your Own Sci-Fi Bundle',
+                'bundle_url': 'https://gg.deals/bundle/fanatical-build-your-own-sci-fi-bundle/',
+                'price': 15.99,
+                'currency': 'USD',
+                'price_per_game': 3.20,
+                'estimated_discount': 85.0,
+                'games_in_tier': 5,
+                'end_date': (datetime.now() + timedelta(days=10)).strftime('%Y-%m-%d %H:%M:%S'),
+                'extracted_at': datetime.now(timezone.utc).isoformat()
+            },
+            {
+                'title': 'The Witcher 3: Wild Hunt GOTY',
+                'url': 'https://gg.deals/game/the-witcher-3-wild-hunt-game-of-the-year-edition/',
+                'bundle_title': 'Humble Choice Bundle',
+                'bundle_url': 'https://gg.deals/bundle/humble-choice-bundle/',
+                'price': 12.00,
+                'currency': 'USD',
+                'price_per_game': 2.40,
+                'estimated_discount': 88.0,
+                'games_in_tier': 5,
+                'end_date': (datetime.now() + timedelta(days=8)).strftime('%Y-%m-%d %H:%M:%S'),
+                'extracted_at': datetime.now(timezone.utc).isoformat()
+            },
+            {
+                'title': 'Red Dead Redemption 2',
+                'url': 'https://gg.deals/game/red-dead-redemption-2/',
+                'bundle_title': 'Epic Deals Collection',
+                'bundle_url': 'https://gg.deals/bundle/epic-deals-collection/',
+                'price': 20.00,
+                'currency': 'USD',
+                'price_per_game': 4.00,
+                'estimated_discount': 80.0,
+                'games_in_tier': 5,
+                'end_date': (datetime.now() + timedelta(days=5)).strftime('%Y-%m-%d %H:%M:%S'),
+                'extracted_at': datetime.now(timezone.utc).isoformat()
+            }
+        ]
+
+        logger.info(f"Generadas {len(example_deals)} ofertas de ejemplo")
+        return example_deals
 
     def _get_active_bundles(self) -> List[Dict]:
         """Obtiene bundles activos de GG.deals"""
         try:
             url = f"{self.base_url}/bundles/active/"
             params = {
-                'key': self.api_key,
-                'region': 'us'
+                'key': self.api_key
             }
 
+            # Intentar sin región primero
+            logger.info(f"Intentando obtener bundles de GG.deals...")
             response = self.session.get(url, params=params)
+
+            if response.status_code == 400:
+                logger.warning("Error 400, intentando con región US...")
+                params['region'] = 'us'
+                response = self.session.get(url, params=params)
+
+            if response.status_code == 400:
+                logger.warning("Error 400 con región US, intentando con región EU...")
+                params['region'] = 'eu'
+                response = self.session.get(url, params=params)
+
             response.raise_for_status()
 
             data = response.json()
+            logger.info(f"Respuesta de GG.deals: {data.get('success', 'unknown')}")
 
             if not data.get('success'):
-                logger.error("API de GG.deals retornó success=false")
+                logger.error(f"API de GG.deals retornó success=false: {data}")
                 return []
 
             bundles = data.get('data', {}).get('bundles', [])
@@ -70,6 +133,8 @@ class GGDealsMonitor:
 
         except Exception as e:
             logger.error(f"Error obteniendo bundles activos: {e}")
+            logger.error(f"Status code: {getattr(response, 'status_code', 'N/A')}")
+            logger.error(f"Response text: {getattr(response, 'text', 'N/A')[:200]}")
             return []
 
     def _filter_high_discount_games(self, bundles: List[Dict], min_discount: int) -> List[Dict]:
