@@ -1,5 +1,24 @@
 {
-  "last_update": null,
-  "games": [],
-  "total_games": 0
+  "last_update": "2025-06-08T01:17:47.175492+00:00",
+  "games": [
+    {
+      "title": "Ogu and the Secret Forest",
+      "description": "Explore the wonderful world with baby Ogu! 'Ogu and the Secret Forest' is a 2D adventure game with hand-drawn characters and various types of puzzles. Befriend bouncy characters and defeat strange creatures to unravel the mystery of the charming world.",
+      "image_url": "https://cdn1.epicgames.com/offer/d5241c76f178492ea1540fce45616757/Day9wide_2560x1440-f6421d67946917c410a33f9c7a3abaed",
+      "end_date": "2025-06-12T15:00:00.000Z",
+      "namespace": "d5241c76f178492ea1540fce45616757",
+      "id": "550d30ebf2f343609a2b01c98293b264",
+      "extracted_at": "2025-06-08T01:17:43.300585+00:00"
+    },
+    {
+      "title": "DEATHLOOP",
+      "description": "DEATHLOOP",
+      "image_url": "https://cdn1.epicgames.com/offer/d5241c76f178492ea1540fce45616757/Day8wide_2560x1440-bf6d342edbd2411ccf24e326852fca93",
+      "end_date": "2025-06-12T15:00:00.000Z",
+      "namespace": "d5241c76f178492ea1540fce45616757",
+      "id": "172406399087483db3a8b84e7051107b",
+      "extracted_at": "2025-06-08T01:17:43.300604+00:00"
+    }
+  ],
+  "total_games": 2
 }
