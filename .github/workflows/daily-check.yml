@@ -3,8 +3,8 @@ name: Epic Games Free Games Monitor
 
 on:
   schedule:
-    # Ejecutar todos los días a las 10:00 AM UTC (11:00 AM CET)
-    - cron: '0 10 * * *'
+    # Ejecutar todos los días a las 8:00 AM hora de Venezuela (12:00 PM UTC)
+    - cron: '0 12 * * *'
 
   # Permitir ejecución manual
   workflow_dispatch:
